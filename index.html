@@ -293,6 +293,7 @@
     let drag = null;
     let selected = null;
     let lastTap = { index: null, time: 0 };
+    let lastTouchAt = 0;
 
     function start() {
       board = Array.from({ length: size }, () => Array(size).fill(null));
@@ -347,7 +348,10 @@
         }
       }
       wrap.appendChild(grid);
-      if (!ghost && !piece.used) wrap.addEventListener("pointerdown", pointerDown);
+      if (!ghost && !piece.used) {
+        wrap.addEventListener("touchstart", touchStart, { passive: false });
+        wrap.addEventListener("pointerdown", pointerDown);
+      }
       return wrap;
     }
 
@@ -372,10 +376,28 @@
       return normalize(normalized.map(([x, y]) => [height - 1 - y, x]));
     }
 
+    function touchStart(event) {
+      event.preventDefault();
+      lastTouchAt = Date.now();
+      const touch = event.touches[0];
+      startDrag(event.currentTarget, touch.clientX, touch.clientY);
+      window.addEventListener("touchmove", touchMove, { passive: false });
+      window.addEventListener("touchend", touchEnd, { once: true, capture: true });
+      window.addEventListener("touchcancel", touchEnd, { once: true, capture: true });
+    }
+
     function pointerDown(event) {
+      if (Date.now() - lastTouchAt < 700) return;
       event.preventDefault();
       event.stopPropagation();
-      const index = Number(event.currentTarget.dataset.index);
+      startDrag(event.currentTarget, event.clientX, event.clientY);
+      window.addEventListener("pointermove", pointerMove, { passive: false });
+      window.addEventListener("pointerup", pointerUp, { once: true, capture: true });
+      window.addEventListener("pointercancel", pointerUp, { once: true, capture: true });
+    }
+
+    function startDrag(source, x, y) {
+      const index = Number(source.dataset.index);
       const piece = pieces[index];
       const now = Date.now();
       if (lastTap.index === index && now - lastTap.time < 330) {
@@ -388,25 +410,47 @@
       lastTap = { index, time: now };
       const ghost = renderPiece(piece, index, true);
       document.body.appendChild(ghost);
-      drag = { index, piece, ghost, x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY };
-      moveGhost(event.clientX, event.clientY);
-      window.addEventListener("pointermove", pointerMove, { passive: false });
-      window.addEventListener("pointerup", pointerUp, { once: true, capture: true });
+      drag = { index, piece, ghost, x, y, startX: x, startY: y };
+      moveGhost(x, y);
     }
 
     function pointerMove(event) {
       if (!drag) return;
       event.preventDefault();
-      moveGhost(event.clientX, event.clientY);
-      showPreview(event.clientX, event.clientY);
+      updateDrag(event.clientX, event.clientY);
+    }
+
+    function touchMove(event) {
+      if (!drag) return;
+      event.preventDefault();
+      const touch = event.touches[0];
+      updateDrag(touch.clientX, touch.clientY);
+    }
+
+    function updateDrag(x, y) {
+      moveGhost(x, y);
+      showPreview(x, y);
     }
 
     function pointerUp(event) {
       if (!drag) return;
       event.preventDefault();
       event.stopPropagation();
-      const moved = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 12;
-      const pos = boardPosition(event.clientX, event.clientY, drag.piece);
+      finishDrag(event.clientX, event.clientY);
+      window.removeEventListener("pointermove", pointerMove);
+    }
+
+    function touchEnd(event) {
+      if (!drag) return;
+      event.preventDefault();
+      event.stopPropagation();
+      finishDrag(drag.x, drag.y);
+      window.removeEventListener("touchmove", touchMove);
+    }
+
+    function finishDrag(x, y) {
+      const moved = Math.hypot(x - drag.startX, y - drag.startY) > 12;
+      const pos = boardPosition(x, y, drag.piece);
       clearPreview();
       if (pos && place(drag.index, pos.x, pos.y)) {
         if (pieces.every((p) => p.used)) pieces = makePieces();
@@ -418,7 +462,6 @@
       }
       drag.ghost.remove();
       drag = null;
-      window.removeEventListener("pointermove", pointerMove);
     }
 
     function moveGhost(x, y) {
