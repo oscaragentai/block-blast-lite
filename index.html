@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="el">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
@@ -258,24 +258,24 @@
 <body>
   <main class="app" aria-label="Block Blast Lite">
     <section class="topbar">
-      <div class="stat">ΣΚΟΡ<span id="score">0</span></div>
-      <div class="stat">ΡΕΚΟΡ<span id="best">0</span></div>
-      <button id="eraser" type="button" aria-label="Σβήστρα" title="Σβήστρα">⌫5</button>
-      <button id="restart" type="button" aria-label="Νέο παιχνίδι" title="Νέο παιχνίδι">↻</button>
+      <div class="stat">SCORE<span id="score">0</span></div>
+      <div class="stat">BEST<span id="best">0</span></div>
+      <button id="eraser" type="button" aria-label="Eraser" title="Eraser">⌫5</button>
+      <button id="restart" type="button" aria-label="New game" title="New game">↻</button>
     </section>
 
     <section class="board-wrap">
-      <div id="board" class="board" aria-label="Ταμπλό"></div>
+      <div id="board" class="board" aria-label="Board"></div>
     </section>
 
-    <section id="tray" class="tray" aria-label="Κομμάτια"></section>
+    <section id="tray" class="tray" aria-label="Pieces"></section>
   </main>
 
   <div id="overlay" class="overlay">
     <div class="dialog">
       <h1>Game Over</h1>
-      <p>Σκορ: <span id="finalScore">0</span></p>
-      <button id="again" type="button">Ξανά</button>
+      <p>Score: <span id="finalScore">0</span></p>
+      <button id="again" type="button">Play Again</button>
     </div>
   </div>
 
