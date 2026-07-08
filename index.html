@@ -346,8 +346,20 @@
         }
       }
       wrap.appendChild(grid);
-      if (!ghost && !piece.used) wrap.addEventListener("pointerdown", pointerDown);
+      if (!ghost && !piece.used) {
+        wrap.addEventListener("pointerup", selectPiece);
+        wrap.addEventListener("click", selectPiece);
+      }
       return wrap;
+    }
+
+    function selectPiece(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      const index = Number(event.currentTarget.dataset.index);
+      if (pieces[index]?.used) return;
+      selected = index;
+      render();
     }
 
     function normalize(cells) {
@@ -460,10 +472,15 @@
       if (cleared) score += cleared * cleared * 120;
     }
 
-    boardEl.addEventListener("pointerdown", (event) => {
+    boardEl.addEventListener("pointerup", placeSelectedFromBoard);
+    boardEl.addEventListener("click", placeSelectedFromBoard);
+
+    function placeSelectedFromBoard(event) {
       if (selected === null || pieces[selected]?.used) return;
       event.preventDefault();
-      const pos = boardPosition(event.clientX, event.clientY, pieces[selected]);
+      const cell = event.target.closest(".cell");
+      if (!cell) return;
+      const pos = { x: Number(cell.dataset.x), y: Number(cell.dataset.y) };
       if (pos && place(selected, pos.x, pos.y)) {
         if (pieces.every((p) => p.used)) pieces = makePieces();
         selected = null;
@@ -471,7 +488,7 @@
       } else {
         showTapPreview(pos);
       }
-    });
+    }
 
     function showTapPreview(pos) {
       clearPreview();
