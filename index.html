@@ -292,6 +292,7 @@
     let best = Number(localStorage.getItem("blockBlastLiteBest") || 0);
     let drag = null;
     let selected = null;
+    let lastTap = { index: null, time: 0 };
 
     function start() {
       board = Array.from({ length: size }, () => Array(size).fill(null));
@@ -365,11 +366,26 @@
       return cells.map(([x, y]) => [x - minX, y - minY]);
     }
 
+    function rotateCells(cells) {
+      const normalized = normalize(cells);
+      const height = Math.max(...normalized.map(([, y]) => y)) + 1;
+      return normalize(normalized.map(([x, y]) => [height - 1 - y, x]));
+    }
+
     function pointerDown(event) {
       event.preventDefault();
       event.stopPropagation();
       const index = Number(event.currentTarget.dataset.index);
       const piece = pieces[index];
+      const now = Date.now();
+      if (lastTap.index === index && now - lastTap.time < 330) {
+        piece.cells = rotateCells(piece.cells);
+        selected = index;
+        lastTap = { index: null, time: 0 };
+        render();
+        return;
+      }
+      lastTap = { index, time: now };
       const ghost = renderPiece(piece, index, true);
       document.body.appendChild(ghost);
       drag = { index, piece, ghost, x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY };
