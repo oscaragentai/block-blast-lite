@@ -346,10 +346,7 @@
         }
       }
       wrap.appendChild(grid);
-      if (!ghost && !piece.used) {
-        wrap.addEventListener("pointerup", selectPiece);
-        wrap.addEventListener("click", selectPiece);
-      }
+      if (!ghost && !piece.used) wrap.addEventListener("pointerdown", pointerDown);
       return wrap;
     }
 
@@ -370,24 +367,28 @@
 
     function pointerDown(event) {
       event.preventDefault();
+      event.stopPropagation();
       const index = Number(event.currentTarget.dataset.index);
       const piece = pieces[index];
       const ghost = renderPiece(piece, index, true);
       document.body.appendChild(ghost);
       drag = { index, piece, ghost, x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY };
       moveGhost(event.clientX, event.clientY);
-      window.addEventListener("pointermove", pointerMove);
-      window.addEventListener("pointerup", pointerUp, { once: true });
+      window.addEventListener("pointermove", pointerMove, { passive: false });
+      window.addEventListener("pointerup", pointerUp, { once: true, capture: true });
     }
 
     function pointerMove(event) {
       if (!drag) return;
+      event.preventDefault();
       moveGhost(event.clientX, event.clientY);
       showPreview(event.clientX, event.clientY);
     }
 
     function pointerUp(event) {
       if (!drag) return;
+      event.preventDefault();
+      event.stopPropagation();
       const moved = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 12;
       const pos = boardPosition(event.clientX, event.clientY, drag.piece);
       clearPreview();
