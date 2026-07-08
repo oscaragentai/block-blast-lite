@@ -53,7 +53,7 @@
 
     .topbar {
       display: grid;
-      grid-template-columns: 1fr 1fr auto;
+      grid-template-columns: 1fr 1fr auto auto;
       gap: 8px;
       align-items: stretch;
     }
@@ -88,6 +88,16 @@
       font-size: 22px;
       font-weight: 900;
       color: var(--ink);
+    }
+
+    button.active {
+      border-color: rgba(223, 75, 75, 0.72);
+      background: #fff0ec;
+      color: var(--red);
+    }
+
+    button:disabled {
+      opacity: 0.45;
     }
 
     .board-wrap {
@@ -250,6 +260,7 @@
     <section class="topbar">
       <div class="stat">ΣΚΟΡ<span id="score">0</span></div>
       <div class="stat">ΡΕΚΟΡ<span id="best">0</span></div>
+      <button id="eraser" type="button" aria-label="Σβήστρα" title="Σβήστρα">⌫5</button>
       <button id="restart" type="button" aria-label="Νέο παιχνίδι" title="Νέο παιχνίδι">↻</button>
     </section>
 
@@ -284,6 +295,7 @@
     const trayEl = document.getElementById("tray");
     const scoreEl = document.getElementById("score");
     const bestEl = document.getElementById("best");
+    const eraserEl = document.getElementById("eraser");
     const overlay = document.getElementById("overlay");
     const finalScoreEl = document.getElementById("finalScore");
     let board = [];
@@ -294,12 +306,16 @@
     let selected = null;
     let lastTap = { index: null, time: 0 };
     let lastTouchAt = 0;
+    let eraserUses = 5;
+    let eraserMode = false;
 
     function start() {
       board = Array.from({ length: size }, () => Array(size).fill(null));
       pieces = makePieces();
       score = 0;
       selected = null;
+      eraserUses = 5;
+      eraserMode = false;
       overlay.classList.remove("show");
       render();
     }
@@ -314,6 +330,9 @@
     function render() {
       bestEl.textContent = best;
       scoreEl.textContent = score;
+      eraserEl.textContent = "⌫" + eraserUses;
+      eraserEl.disabled = eraserUses <= 0;
+      eraserEl.classList.toggle("active", eraserMode);
       boardEl.innerHTML = "";
       for (let y = 0; y < size; y++) {
         for (let x = 0; x < size; x++) {
@@ -536,11 +555,16 @@
     boardEl.addEventListener("click", placeSelectedFromBoard);
 
     function placeSelectedFromBoard(event) {
-      if (selected === null || pieces[selected]?.used) return;
-      event.preventDefault();
       const cell = event.target.closest(".cell");
       if (!cell) return;
       const pos = { x: Number(cell.dataset.x), y: Number(cell.dataset.y) };
+      if (eraserMode) {
+        event.preventDefault();
+        eraseCell(pos.x, pos.y);
+        return;
+      }
+      if (selected === null || pieces[selected]?.used) return;
+      event.preventDefault();
       if (pos && place(selected, pos.x, pos.y)) {
         if (pieces.every((p) => p.used)) pieces = makePieces();
         selected = null;
@@ -548,6 +572,19 @@
       } else {
         showTapPreview(pos);
       }
+    }
+
+    function eraseCell(x, y) {
+      if (eraserUses <= 0 || !board[y][x]) {
+        eraserMode = false;
+        render();
+        return;
+      }
+      board[y][x] = null;
+      eraserUses -= 1;
+      eraserMode = false;
+      selected = null;
+      render();
     }
 
     function showTapPreview(pos) {
@@ -580,6 +617,12 @@
       overlay.classList.add("show");
     }
 
+    eraserEl.addEventListener("click", () => {
+      if (eraserUses <= 0) return;
+      eraserMode = !eraserMode;
+      selected = null;
+      render();
+    });
     document.getElementById("restart").addEventListener("click", start);
     document.getElementById("again").addEventListener("click", start);
     start();
