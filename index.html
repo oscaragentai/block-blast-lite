@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="el">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Block Blast Lite</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Arial, Helvetica, sans-serif;
+      --ink: #20242c;
+      --paper: #fffdf7;
+      --line: rgba(32, 36, 44, 0.15);
+      --cell: #eef2f6;
+      --cell-line: #d8dee8;
+      --blue: #2878e8;
+      --green: #159760;
+      --red: #df4b4b;
+      --yellow: #f1bd2f;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background:
+        linear-gradient(135deg, rgba(40, 120, 232, 0.12) 0 25%, transparent 25% 50%, rgba(21, 151, 96, 0.12) 50% 75%, transparent 75%) 0 0 / 34px 34px,
+        linear-gradient(180deg, #f7fbff 0%, #fff8df 100%);
+      color: var(--ink);
+      touch-action: none;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+    }
+
+    .app {
+      width: min(100%, 560px);
+      height: min(100dvh - 22px, 850px);
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: 10px;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .stat,
+    button {
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 253, 247, 0.94);
+      box-shadow: 0 10px 28px rgba(32, 36, 44, 0.12);
+    }
+
+    .stat {
+      min-width: 0;
+      padding: 8px 10px;
+      text-align: center;
+      font-weight: 900;
+      font-size: 13px;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 2px;
+      color: var(--blue);
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    button {
+      min-width: 46px;
+      padding: 0 12px;
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--ink);
+    }
+
+    .board-wrap {
+      min-height: 0;
+      display: grid;
+      place-items: center;
+    }
+
+    .board {
+      width: min(100%, calc((100dvh - 214px) * 1));
+      aspect-ratio: 1;
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
+      gap: 4px;
+      padding: 6px;
+      border: 3px solid rgba(32, 36, 44, 0.18);
+      border-radius: 8px;
+      background: rgba(255, 253, 247, 0.72);
+      box-shadow: 0 18px 44px rgba(32, 36, 44, 0.16);
+    }
+
+    .cell {
+      border: 1px solid var(--cell-line);
+      border-radius: 6px;
+      background: var(--cell);
+      transition: transform 110ms ease, background 110ms ease;
+    }
+
+    .cell.filled,
+    .mini-cell.filled {
+      border-color: rgba(255, 255, 255, 0.45);
+      box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.12), inset 0 2px 0 rgba(255, 255, 255, 0.45);
+    }
+
+    .cell.preview {
+      outline: 3px solid rgba(21, 151, 96, 0.55);
+      transform: scale(0.94);
+    }
+
+    .cell.bad {
+      outline: 3px solid rgba(223, 75, 75, 0.48);
+    }
+
+    .tray {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      min-height: 116px;
+    }
+
+    .piece {
+      height: 116px;
+      display: grid;
+      place-items: center;
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 253, 247, 0.94);
+      box-shadow: 0 10px 28px rgba(32, 36, 44, 0.12);
+      cursor: grab;
+      user-select: none;
+    }
+
+    .piece.used {
+      opacity: 0.25;
+      pointer-events: none;
+    }
+
+    .piece.selected {
+      border-color: rgba(40, 120, 232, 0.78);
+      outline: 3px solid rgba(40, 120, 232, 0.22);
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 18px);
+      grid-template-rows: repeat(5, 18px);
+      gap: 3px;
+    }
+
+    .mini-cell {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+    }
+
+    .drag-ghost {
+      position: fixed;
+      z-index: 20;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      opacity: 0.92;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      place-items: center;
+      padding: 16px;
+      background: rgba(32, 36, 44, 0.32);
+    }
+
+    .overlay.show {
+      display: grid;
+    }
+
+    .dialog {
+      width: min(100%, 340px);
+      padding: 18px;
+      border: 2px solid rgba(32, 36, 44, 0.16);
+      border-radius: 8px;
+      background: var(--paper);
+      text-align: center;
+      box-shadow: 0 24px 70px rgba(32, 36, 44, 0.28);
+    }
+
+    .dialog h1 {
+      margin: 0 0 6px;
+      font-size: 28px;
+    }
+
+    .dialog p {
+      margin: 0 0 14px;
+      font-weight: 800;
+    }
+
+    .dialog button {
+      width: 100%;
+      height: 46px;
+      font-size: 17px;
+      background: var(--blue);
+      color: white;
+      border-color: rgba(0, 0, 0, 0.1);
+    }
+
+    @media (max-height: 650px) {
+      .piece {
+        height: 94px;
+      }
+
+      .tray {
+        min-height: 94px;
+      }
+
+      .mini-grid {
+        grid-template-columns: repeat(5, 15px);
+        grid-template-rows: repeat(5, 15px);
+      }
+
+      .mini-cell {
+        width: 15px;
+        height: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" aria-label="Block Blast Lite">
+    <section class="topbar">
+      <div class="stat">ΣΚΟΡ<span id="score">0</span></div>
+      <div class="stat">ΡΕΚΟΡ<span id="best">0</span></div>
+      <button id="restart" type="button" aria-label="Νέο παιχνίδι" title="Νέο παιχνίδι">↻</button>
+    </section>
+
+    <section class="board-wrap">
+      <div id="board" class="board" aria-label="Ταμπλό"></div>
+    </section>
+
+    <section id="tray" class="tray" aria-label="Κομμάτια"></section>
+  </main>
+
+  <div id="overlay" class="overlay">
+    <div class="dialog">
+      <h1>Game Over</h1>
+      <p>Σκορ: <span id="finalScore">0</span></p>
+      <button id="again" type="button">Ξανά</button>
+    </div>
+  </div>
+
+  <script>
+    const size = 8;
+    const colors = ["#2878e8", "#159760", "#df4b4b", "#f1bd2f", "#9a65d8", "#f06f3c"];
+    const shapes = [
+      [[0, 0]], [[0, 0], [1, 0]], [[0, 0], [0, 1]], [[0, 0], [1, 0], [2, 0]], [[0, 0], [0, 1], [0, 2]],
+      [[0, 0], [1, 0], [0, 1], [1, 1]], [[0, 0], [1, 0], [2, 0], [3, 0]], [[0, 0], [0, 1], [0, 2], [0, 3]],
+      [[0, 0], [1, 0], [2, 0], [1, 1]], [[1, 0], [0, 1], [1, 1], [2, 1]], [[0, 0], [0, 1], [1, 1], [2, 1]],
+      [[2, 0], [0, 1], [1, 1], [2, 1]], [[0, 0], [1, 0], [1, 1], [1, 2]], [[0, 0], [0, 1], [0, 2], [1, 2]],
+      [[0, 0], [1, 0], [1, 1], [2, 1]], [[1, 0], [2, 0], [0, 1], [1, 1]], [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1]],
+      [[0, 0], [1, 0], [0, 1], [1, 1], [0, 2], [1, 2]], [[0, 0], [1, 0], [2, 0], [0, 1], [0, 2]]
+    ];
+
+    const boardEl = document.getElementById("board");
+    const trayEl = document.getElementById("tray");
+    const scoreEl = document.getElementById("score");
+    const bestEl = document.getElementById("best");
+    const overlay = document.getElementById("overlay");
+    const finalScoreEl = document.getElementById("finalScore");
+    let board = [];
+    let pieces = [];
+    let score = 0;
+    let best = Number(localStorage.getItem("blockBlastLiteBest") || 0);
+    let drag = null;
+    let selected = null;
+
+    function start() {
+      board = Array.from({ length: size }, () => Array(size).fill(null));
+      pieces = makePieces();
+      score = 0;
+      selected = null;
+      overlay.classList.remove("show");
+      render();
+    }
+
+    function makePieces() {
+      return Array.from({ length: 3 }, () => {
+        const cells = shapes[Math.floor(Math.random() * shapes.length)];
+        return { cells, color: colors[Math.floor(Math.random() * colors.length)], used: false };
+      });
+    }
+
+    function render() {
+      bestEl.textContent = best;
+      scoreEl.textContent = score;
+      boardEl.innerHTML = "";
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          const cell = document.createElement("div");
+          cell.className = "cell" + (board[y][x] ? " filled" : "");
+          cell.dataset.x = x;
+          cell.dataset.y = y;
+          if (board[y][x]) cell.style.background = board[y][x];
+          boardEl.appendChild(cell);
+        }
+      }
+      trayEl.innerHTML = "";
+      pieces.forEach((piece, index) => trayEl.appendChild(renderPiece(piece, index, false)));
+      if (!canAnyMove()) endGame();
+    }
+
+    function renderPiece(piece, index, ghost) {
+      const wrap = document.createElement("div");
+      wrap.className = ghost ? "drag-ghost" : "piece" + (piece.used ? " used" : "");
+      if (!ghost && selected === index && !piece.used) wrap.classList.add("selected");
+      wrap.dataset.index = index;
+      const grid = document.createElement("div");
+      grid.className = "mini-grid";
+      const coords = normalize(piece.cells);
+      for (let y = 0; y < 5; y++) {
+        for (let x = 0; x < 5; x++) {
+          const c = document.createElement("div");
+          const filled = coords.some(([cx, cy]) => cx === x && cy === y);
+          c.className = "mini-cell" + (filled ? " filled" : "");
+          c.style.background = filled ? piece.color : "transparent";
+          grid.appendChild(c);
+        }
+      }
+      wrap.appendChild(grid);
+      if (!ghost && !piece.used) wrap.addEventListener("pointerdown", pointerDown);
+      return wrap;
+    }
+
+    function normalize(cells) {
+      const minX = Math.min(...cells.map(([x]) => x));
+      const minY = Math.min(...cells.map(([, y]) => y));
+      return cells.map(([x, y]) => [x - minX, y - minY]);
+    }
+
+    function pointerDown(event) {
+      event.preventDefault();
+      const index = Number(event.currentTarget.dataset.index);
+      const piece = pieces[index];
+      const ghost = renderPiece(piece, index, true);
+      document.body.appendChild(ghost);
+      drag = { index, piece, ghost, x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY };
+      moveGhost(event.clientX, event.clientY);
+      window.addEventListener("pointermove", pointerMove);
+      window.addEventListener("pointerup", pointerUp, { once: true });
+    }
+
+    function pointerMove(event) {
+      if (!drag) return;
+      moveGhost(event.clientX, event.clientY);
+      showPreview(event.clientX, event.clientY);
+    }
+
+    function pointerUp(event) {
+      if (!drag) return;
+      const moved = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 12;
+      const pos = boardPosition(event.clientX, event.clientY, drag.piece);
+      clearPreview();
+      if (pos && place(drag.index, pos.x, pos.y)) {
+        if (pieces.every((p) => p.used)) pieces = makePieces();
+        selected = null;
+        render();
+      } else if (!moved) {
+        selected = drag.index;
+        render();
+      }
+      drag.ghost.remove();
+      drag = null;
+      window.removeEventListener("pointermove", pointerMove);
+    }
+
+    function moveGhost(x, y) {
+      drag.x = x;
+      drag.y = y;
+      drag.ghost.style.left = x + "px";
+      drag.ghost.style.top = (y - 48) + "px";
+    }
+
+    function boardPosition(x, y, piece = null) {
+      const rect = boardEl.getBoundingClientRect();
+      if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) return null;
+      const step = rect.width / size;
+      let bx = Math.floor((x - rect.left) / step);
+      let by = Math.floor((y - rect.top) / step);
+      if (piece) {
+        const width = Math.max(...piece.cells.map(([cx]) => cx)) + 1;
+        const height = Math.max(...piece.cells.map(([, cy]) => cy)) + 1;
+        bx -= Math.floor(width / 2);
+        by -= Math.floor(height / 2);
+      }
+      return { x: bx, y: by };
+    }
+
+    function showPreview(x, y) {
+      clearPreview();
+      const pos = boardPosition(x, y, drag.piece);
+      if (!pos || !drag) return;
+      const ok = canPlace(drag.piece, pos.x, pos.y);
+      drag.piece.cells.forEach(([dx, dy]) => {
+        const cell = boardEl.querySelector(`[data-x="${pos.x + dx}"][data-y="${pos.y + dy}"]`);
+        if (cell) cell.classList.add(ok ? "preview" : "bad");
+      });
+    }
+
+    function clearPreview() {
+      boardEl.querySelectorAll(".preview,.bad").forEach((cell) => cell.classList.remove("preview", "bad"));
+    }
+
+    function canPlace(piece, x, y) {
+      return piece.cells.every(([dx, dy]) => {
+        const nx = x + dx;
+        const ny = y + dy;
+        return nx >= 0 && nx < size && ny >= 0 && ny < size && !board[ny][nx];
+      });
+    }
+
+    function place(index, x, y) {
+      const piece = pieces[index];
+      if (!canPlace(piece, x, y)) return false;
+      piece.cells.forEach(([dx, dy]) => board[y + dy][x + dx] = piece.color);
+      piece.used = true;
+      score += piece.cells.length * 10;
+      clearLines();
+      best = Math.max(best, score);
+      localStorage.setItem("blockBlastLiteBest", String(best));
+      return true;
+    }
+
+    function clearLines() {
+      const rows = [];
+      const cols = [];
+      for (let y = 0; y < size; y++) if (board[y].every(Boolean)) rows.push(y);
+      for (let x = 0; x < size; x++) if (board.every((row) => row[x])) cols.push(x);
+      rows.forEach((y) => board[y].fill(null));
+      cols.forEach((x) => board.forEach((row) => row[x] = null));
+      const cleared = rows.length + cols.length;
+      if (cleared) score += cleared * cleared * 120;
+    }
+
+    boardEl.addEventListener("pointerdown", (event) => {
+      if (selected === null || pieces[selected]?.used) return;
+      event.preventDefault();
+      const pos = boardPosition(event.clientX, event.clientY, pieces[selected]);
+      if (pos && place(selected, pos.x, pos.y)) {
+        if (pieces.every((p) => p.used)) pieces = makePieces();
+        selected = null;
+        render();
+      } else {
+        showTapPreview(pos);
+      }
+    });
+
+    function showTapPreview(pos) {
+      clearPreview();
+      if (!pos || selected === null) return;
+      const piece = pieces[selected];
+      const ok = canPlace(piece, pos.x, pos.y);
+      piece.cells.forEach(([dx, dy]) => {
+        const cell = boardEl.querySelector(`[data-x="${pos.x + dx}"][data-y="${pos.y + dy}"]`);
+        if (cell) cell.classList.add(ok ? "preview" : "bad");
+      });
+      window.setTimeout(clearPreview, 260);
+    }
+
+    function canAnyMove() {
+      return pieces.some((piece) => !piece.used && canPieceMove(piece));
+    }
+
+    function canPieceMove(piece) {
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          if (canPlace(piece, x, y)) return true;
+        }
+      }
+      return false;
+    }
+
+    function endGame() {
+      finalScoreEl.textContent = score;
+      overlay.classList.add("show");
+    }
+
+    document.getElementById("restart").addEventListener("click", start);
+    document.getElementById("again").addEventListener("click", start);
+    start();
+  </script>
+</body>
+</html>
