@@ -100,6 +100,13 @@
       opacity: 0.45;
     }
 
+    .tool-button {
+      min-width: 72px;
+      padding: 0 8px;
+      font-size: 13px;
+      line-height: 1.1;
+    }
+
     .board-wrap {
       min-height: 0;
       display: grid;
@@ -260,8 +267,8 @@
     <section class="topbar">
       <div class="stat">SCORE<span id="score">0</span></div>
       <div class="stat">BEST<span id="best">0</span></div>
-      <button id="eraser" type="button" aria-label="Eraser" title="Eraser">⌫5</button>
-      <button id="restart" type="button" aria-label="New game" title="New game">↻</button>
+      <button id="eraser" class="tool-button" type="button" aria-label="Eraser" title="Eraser">Erase 5</button>
+      <button id="restart" class="tool-button" type="button" aria-label="Play again" title="Play again">Play Again</button>
     </section>
 
     <section class="board-wrap">
@@ -330,7 +337,7 @@
     function render() {
       bestEl.textContent = best;
       scoreEl.textContent = score;
-      eraserEl.textContent = "⌫" + eraserUses;
+      eraserEl.textContent = "Erase " + eraserUses;
       eraserEl.disabled = eraserUses <= 0;
       eraserEl.classList.toggle("active", eraserMode);
       boardEl.innerHTML = "";
